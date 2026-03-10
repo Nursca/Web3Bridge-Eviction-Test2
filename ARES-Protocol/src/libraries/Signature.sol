@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+library TypeHashes {
+    bytes32 internal constant DOMAIN_TYPEHASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
+
+    bytes32 internal constant SIGNATURE_PAYLOAD_TYPEHASH = keccak256(
+        "SignaturePayload(uint256 proposalId, uint256 signerNonce, uint256 chainId, uint256 deadline, bytes32 payloadHash)"
+    );
+}
 
 library Signature {
     
@@ -18,7 +23,7 @@ library Signature {
         ));
     }
 
-    function hashSignaturePayLoad(uint256 proposalId, uint256 signerNonce, uint256 chainId, uint256 deadline, bytes payloadHash) internal pure returns (bytes32 structHash) {
+    function hashSignaturePayLoad(uint256 proposalId, uint256 signerNonce, uint256 chainId, uint256 deadline, bytes32 payloadHash) internal pure returns (bytes32 structHash) {
         structHash = keccak256(abi.encode(
             TypeHashes.SIGNATURE_PAYLOAD_TYPEHASH,
             proposalId,
