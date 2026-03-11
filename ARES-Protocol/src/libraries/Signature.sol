@@ -11,7 +11,7 @@ library TypeHashes {
 
 library Signature {
     
-    bytes32 private constant SECP256K1_HALF_ORDER = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
+    bytes32 internal constant SECP256K1_HALF_ORDER = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     function buildDomainSeparator(string memory name, string memory version) internal view returns (bytes32 domainSeparator) {
         domainSeparator = keccak256(abi.encode(
