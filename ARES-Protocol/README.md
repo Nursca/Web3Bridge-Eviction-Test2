@@ -1,13 +1,28 @@
-## Foundry
+# ARES Protocol Treasury (Foundry)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A modular secure treasury execution system for decentralized governance.
 
-Foundry consists of:
+## Structure
+- `src/interfaces/` - module APIs
+- `src/libraries/` - signature + Merkle utilities
+- `src/modules/` - gateway modules (GovernanceGuard, ProposalEngine, SignatureVerifier, TimeLockEngine, RewardDistributor)
+- `src/core/AresTreasury.sol` - vault execution target
+- `test/` - Foundry test coverage
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Setup
+1. Install Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
+2. Run tests: `forge test`
+
+## Files you need to review
+- `src/modules/ProposalEngine.sol`
+- `src/modules/SignatureVerifier.sol`
+- `src/modules/TimeLockEngine.sol`
+- `src/modules/RewardDistributor.sol`
+- `src/core/AresTreasury.sol`
+
+
+## Notes
+This project is an original architecture with explicit protections against signature replay, reentrancy, timelock bypass, double claim, and governance griefing. It is not a verbatim copy of existing implementations.
 
 ## Documentation
 
