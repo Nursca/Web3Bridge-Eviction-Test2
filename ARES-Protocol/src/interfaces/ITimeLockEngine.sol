@@ -8,6 +8,7 @@ interface ITimeLockEngine {
         bytes32 commitmentHash;
         uint256 eta;
         uint256 queuedAt;
+        uint8 actionType;
         bool executed;
     }
 

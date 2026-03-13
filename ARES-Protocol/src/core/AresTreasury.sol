@@ -55,6 +55,9 @@ contract AresTreasury is GovernanceGuard {
 
     function executeCall(address target, uint256 value, bytes calldata data) external onlyTimelock nonReentrant {
         require(target != address(0), "AresTreasury: target zero");
+        require(target != address(this), "AresTreasury cannot target self");
+        require(target != address(timelockEngine), "AresTreasury: cannot target timelock");
+        require(target != address(proposalEngine), "AresTreasury: cannot target proposal engine");
 
         (bool success, bytes memory result) = target.call{value: value}(data);
         require(success, string(result));

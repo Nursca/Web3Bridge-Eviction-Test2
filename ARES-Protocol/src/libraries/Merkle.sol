@@ -3,8 +3,8 @@ pragma solidity ^0.8.27;
 
 library Merkle {
     
-    function hashLeaf(uint256 leafId, address claimer, uint256 amount) internal pure returns (bytes32 leaf) {
-        leaf = keccak256(abi.encode(leafId, claimer, amount));
+    function hashLeaf(uint256 epochId, address claimer, uint256 amount) internal pure returns (bytes32 leaf) {
+        leaf = keccak256(abi.encode(epochId, claimer, amount));
     }
 
     function hashPair(bytes32 leafA, bytes32 leafB) internal pure returns (bytes32 leafPair) {

@@ -64,7 +64,7 @@ contract ProposalEngine is IProposalEngine, GovernanceGuard {
             value: value,
             bond: msg.value,
             createdAt: block.timestamp,
-            snapshotBlock: block.number,
+            snapshotBlock: block.number - 1,
             status: ProposalStatus.DRAFT
         });
         _proposalCallData[proposalId] = callData;

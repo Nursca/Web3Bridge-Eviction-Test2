@@ -6,7 +6,9 @@ import "../interfaces/IProposalEngine.sol";
 import "./GovernanceGuard.sol";
 
 contract TimeLockEngine is ITimeLockEngine, GovernanceGuard {
+
     address public proposalEngine;
+    uint256 public constant GRACE_PERIOD = 7 days;
     mapping(uint256 => QueueEntry) private queueEntries;
     mapping(uint8 => uint256) private actionDelay;
 
@@ -48,6 +50,7 @@ contract TimeLockEngine is ITimeLockEngine, GovernanceGuard {
         onlyProposalEngine
         returns (uint256 eta)
     {
+        require (proposalEngine != address(0), "not initialized");
         require(target != address(0), "TimeLockEngine: invalid target");
         QueueEntry storage entry = queueEntries[proposalId];
         require(entry.queuedAt == 0, "TimeLockEngine: already queued");
@@ -59,6 +62,7 @@ contract TimeLockEngine is ITimeLockEngine, GovernanceGuard {
         entry.eta = eta;
         entry.queuedAt = block.timestamp;
         entry.executed = false;
+        entry.actionType = actionType;
 
         emit ProposalQueued(proposalId, entry.commitmentHash, eta);
     }
@@ -73,17 +77,18 @@ contract TimeLockEngine is ITimeLockEngine, GovernanceGuard {
         require(entry.queuedAt != 0, "TimeLockEngine: not queued");
         require(!entry.executed, "TimeLockEngine: already executed");
         require(block.timestamp >= entry.eta, "TimeLockEngine: not ready");
+        require(block.timestamp <= entry.eta + GRACE_PERIOD, "not ready");
 
-        bytes32 expected = keccak256(abi.encode(proposalId, target, callData, value, IProposalEngine.ActionType.CALL));
+        bytes32 expected = keccak256(abi.encode(proposalId, target, callData, value, entry.actionType));
         // allow either action type in hash to give compatibility to both transfer and call semantics
-        require(entry.commitmentHash == expected || entry.commitmentHash == keccak256(abi.encode(proposalId, target, callData, value, IProposalEngine.ActionType.TRANSFER)), "TimeLockEngine: commitment mismatch");
+        require(entry.commitmentHash == expected, "commitment mismatch");
 
         entry.executed = true;
+        IProposalEngine(proposalEngine).markExecuted(proposalId);
 
         (bool success, bytes memory data) = target.call{value: value}(callData);
+        
         require(success, string(data));
-
-        IProposalEngine(proposalEngine).markExecuted(proposalId);
 
         emit ProposalExecuted(proposalId, msg.sender, target, value);
     }
@@ -107,7 +112,9 @@ contract TimeLockEngine is ITimeLockEngine, GovernanceGuard {
 
     function isExecutable(uint256 proposalId) external view override returns (bool ready) {
         QueueEntry storage entry = queueEntries[proposalId];
-        ready = entry.queuedAt != 0 && !entry.executed && block.timestamp >= entry.eta;
+        ready = entry.queuedAt != 0 && !entry.executed 
+        && block.timestamp >= entry.eta
+        && block.timestamp <= entry.eta + GRACE_PERIOD;
     }
 
     function getDelay(uint8 actionType) public view override returns (uint256 delay) {

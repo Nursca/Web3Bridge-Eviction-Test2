@@ -6,7 +6,7 @@ import "../interfaces/ISignatureVerifier.sol";
 import "../libraries/Signature.sol";
 import "./GovernanceGuard.sol";
 
-contract SignatureVerifier is ISignatureVerifier, GovernanceGuard {
+abstract contract SignatureVerifier is ISignatureVerifier, GovernanceGuard {
     using Signature for bytes32;
 
     address public proposalEngine;
@@ -30,25 +30,25 @@ contract SignatureVerifier is ISignatureVerifier, GovernanceGuard {
     }
 
     function setProposalEngine(address _proposalEngine) external onlyGovernor {
-        require(_proposalEngine != address(0), "SignatureVerifier: zero proposal engine");
+        require(_proposalEngine != address(0), " zero proposal engine");
         proposalEngine = _proposalEngine;
     }
 
     function addSigner(address signer) external onlyGovernor {
-        require(signer != address(0), "SignatureVerifier: zero signer");
-        require(!signers[signer], "SignatureVerifier: already signer");
+        require(signer != address(0), " zero signer");
+        require(!signers[signer], " already signer");
         signers[signer] = true;
         emit SignerAdded(signer);
     }
 
     function removeSigner(address signer) external onlyGovernor {
-        require(signers[signer], "SignatureVerifier: not signer");
+        require(signers[signer], " not signer");
         signers[signer] = false;
         emit SignerRemoved(signer);
     }
 
     function setThreshold(uint8 actionType, uint256 threshold) external onlyGovernor {
-        require(threshold > 0, "SignatureVerifier: threshold zero");
+        require(threshold > 0, " threshold zero");
         thresholds[actionType] = threshold;
         emit ThresholdSet(actionType, threshold);
     }
@@ -71,26 +71,34 @@ contract SignatureVerifier is ISignatureVerifier, GovernanceGuard {
         digest = keccak256(abi.encodePacked("\x19\x01", getDomainSeparator(), structHash));
     }
 
-    function submitSignature(uint256 proposalId, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
-        require(proposalEngine != address(0), "SignatureVerifier: proposal engine not set");
+    function submitSignature(uint256 proposalId, uint256 deadline, address expectedSigner, uint8 v, bytes32 r, bytes32 s) external {
+        uint256 nonce = getNonce[expectedSigner];
+
+        require(proposalEngine != address(0), "proposal engine not set");
         IProposalEngine.Proposal memory prop = IProposalEngine(proposalEngine).getProposal(proposalId);
-        require(prop.status == IProposalEngine.ProposalStatus.COMMIT, "SignatureVerifier: proposal not commit");
-        require(block.timestamp <= deadline, "SignatureVerifier: expired signature");
+
+        bytes32 digest = computeDigest(proposalId, nonce, deadline, prop.payloadHash);
+
+        address recovered = ecrecover(digest, v, r, s);
+        require(recovered == expectedSigner, "signer mismatch");
+        require(signers[recovered], "not approved signer");
+
+        require(prop.status == IProposalEngine.ProposalStatus.COMMIT, "proposal not commit");
+        require(block.timestamp <= deadline, "expired signature");
+        require(v == 27 || v == 28, "invalid v");
+        require(uint256(s) <= uint256(Signature.SECP256K1_HALF_ORDER), "invalid s");
 
         address signer = ecrecover(computeDigest(proposalId, getNonce[msg.sender], deadline, prop.payloadHash), v, r, s);
-        require(signer == msg.sender, "SignatureVerifier: signer mismatch");
-        require(signers[signer], "SignatureVerifier: not approved signer");
-        require(!hasSigned[proposalId][signer], "SignatureVerifier: already signed");
-
-        // malleability protection
-        require(uint256(s) <= uint256(Signature.SECP256K1_HALF_ORDER), "SignatureVerifier: invalid s");
-        require(v == 27 || v == 28, "SignatureVerifier: invalid v");
+        require(signer != address(0), "invalid signature");
+        require(signer == msg.sender, "signer mismatch");
+        require(signers[signer], "not approved signer");
+        require(!hasSigned[proposalId][signer], "already signed");
 
         hasSigned[proposalId][signer] = true;
         signatureCount[proposalId] += 1;
         uint8 actionType = uint8(prop.actionType);
         uint256 threshold = thresholds[actionType];
-        require(threshold > 0, "SignatureVerifier: threshold not set");
+        require(threshold > 0, "threshold not set");
 
         emit SignatureRecorded(proposalId, signer, signatureCount[proposalId], threshold);
 
@@ -98,7 +106,7 @@ contract SignatureVerifier is ISignatureVerifier, GovernanceGuard {
             emit ThresholdReached(proposalId, signatureCount[proposalId]);
         }
 
-        getNonce[signer] += 1;
+        getNonce[recovered] += 1;
         emit NonceIncremented(signer, getNonce[signer] - 1, getNonce[signer]);
     }
 }
